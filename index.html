@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PROTOCOL: BORDERLAND</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Special+Elite&family=Courier+Prime:wght@400;700&display=swap');
+        :root { 
+            --red: #bc0000; 
+            --blue: #005bc4; 
+            --gold: #FFD700;
+            --bg: #0a0a0a; 
+            --paper: #c4c4c4; 
+        }
+        
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); color: var(--paper); font-family: 'Courier Prime', monospace; overflow: hidden; }
+
+        body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03)); z-index: 2; background-size: 100% 3px, 3px 100%; pointer-events: none; }
+
+        #camera-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; filter: brightness(0.2) contrast(1.2) grayscale(0.4); }
+
+        .screen { 
+            display: none; position: relative; z-index: 10; height: 100vh; width: 100%; 
+            flex-direction: column; align-items: center; justify-content: center; 
+            padding: 20px; box-sizing: border-box; background: rgba(5,5,5,0.92); 
+            backdrop-filter: blur(8px);
+            transition: opacity 0.4s ease-in-out, transform 0.4s ease-in-out;
+        }
+        
+        .active { display: flex; animation: flicker 0.15s infinite; }
+        
+        @keyframes flicker { 0% { opacity: 0.97; } 50% { opacity: 1; } 100% { opacity: 0.97; } }
+
+        .btn { 
+            background: transparent; border: 1px solid var(--paper); color: var(--paper); 
+            padding: 15px; font-size: 0.9rem; cursor: pointer; width: 90%; margin: 8px 0; 
+            text-transform: uppercase; letter-spacing: 3px; font-family: 'Special Elite'; 
+            position: relative; transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .btn:active { transform: scale(0.92); background: var(--paper); color: black; filter: brightness(1.2); }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; filter: grayscale(1); transform: scale(1) !important; }
+        
+        .btn-murderer { border-color: var(--red) !important; color: var(--red) !important; box-shadow: 0 0 10px var(--red); }
+        .btn-sheriff { border-color: var(--gold) !important; color: var(--gold) !important; box-shadow: 0 0 10px var(--gold); }
+        
+        .doc-header { border-bottom: 2px solid var(--paper); width: 90%; margin-bottom: 20px; padding-bottom: 5px; text-transform: uppercase; font-weight: bold; font-size: 0.8rem; letter-spacing: 5px; }
+        
+        .id-frame { width: 160px; height: 160px; border: 2px solid var(--paper); padding: 5px; position: relative; margin-bottom: 15px; background: #000; overflow: hidden; }
+        .id-frame img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) contrast(1.3); }
+        
+        .win-frame-red { border: 4px solid var(--red); box-shadow: 0 0 30px var(--red); }
+        .win-frame-gold { border: 4px solid var(--gold); box-shadow: 0 0 30px var(--gold); }
+
+        .lobby-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; max-height: 35vh; overflow-y: auto; }
+        .vote-card { border: 1px solid #333; background: #000; padding: 5px; text-align: center; position: relative; transition: transform 0.2s; }
+        .vote-card:active { transform: scale(0.95); }
+        .vote-card img { width: 100%; height: 60px; object-fit: cover; }
+
+        #notify-toast { 
+            position: fixed; top: 15%; left: 50%; transform: translateX(-50%); 
+            background: var(--gold); color: black; padding: 12px 25px; 
+            font-family: 'Special Elite'; z-index: 10000; display: none;
+            border: 2px solid white; box-shadow: 0 0 40px var(--gold);
+            animation: pulse 0.5s infinite;
+        }
+        @keyframes pulse { 0% { transform: translateX(-50%) scale(1); } 50% { transform: translateX(-50%) scale(1.1); } 100% { transform: translateX(-50%) scale(1); } }
+
+        .status-dead { border: 1px solid var(--red) !important; opacity: 0.3; }
+        #fade-black { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 9999; pointer-events: none; opacity: 0; transition: opacity 0.6s; }
+    </style>
+</head>
+<body>
+
+    <video id="camera-bg" autoplay playsinline muted></video>
+    <div id="fade-black"></div>
+    <div id="notify-toast">WEAPON ACQUIRED</div>
+
+    <div id="menu-screen" class="screen active">
+        <div class="doc-header">Classified / Protocol</div>
+        <h1 style="font-size: 2.3rem; letter-spacing: 12px; margin: 10px 0; text-align: center;">BORDERLAND</h1>
+        <button class="btn" onclick="initAudio(); startNewGame()">Initiate Sequence</button>
+    </div>
+
+    <div id="reg-screen" class="screen">
+        <div class="doc-header">Operative Enrollment</div>
+        <video id="reg-video" autoplay playsinline style="width:160px; height:160px; border:1px solid var(--paper); object-fit:cover; margin-bottom:15px;"></video>
+        <input type="text" id="p-name" placeholder="ENTRY NAME" style="width:85%; padding:12px; background:transparent; color:var(--paper); border:1px solid var(--paper); margin-bottom:10px; text-align:center; font-family:'Courier Prime'; text-transform: uppercase;">
+        <button class="btn" onclick="registerPlayer()">Capture Data</button>
+        <div id="lobby-list" class="lobby-list"></div>
+        <button id="start-btn" class="btn" style="display:none; border-color:var(--red);" onclick="finalizeLobby()">Execute Protocol</button>
+    </div>
+
+    <div id="pass-screen" class="screen">
+        <div class="doc-header">Confidential Handover</div>
+        <h1 id="pass-name" style="letter-spacing: 5px; margin: 15px 0;">---</h1>
+        <div class="id-frame"><img id="pass-img"></div>
+        <button id="reveal-btn" class="btn">Access Dossier</button>
+    </div>
+
+    <div id="dead-screen" class="screen" style="background: #000;">
+        <div class="doc-header" style="color: var(--red); border-color: var(--red);">Bio-Signal Lost</div>
+        <h1 style="color: var(--red); font-size: 1.5rem; letter-spacing: 3px; text-align: center;">YOU'VE BEEN ELIMINATED</h1>
+        <div class="id-frame" style="border-color: var(--red);"><img id="dead-img" style="filter: grayscale(1) brightness(0.2) sepia(1) saturate(10);"></div>
+        <p style="color: var(--red); font-size: 0.7rem;">SYSTEM ACCESS: DENIED</p>
+        <button class="btn" style="border-color: var(--red); color: var(--red);" onclick="endTurn()">Next Operative</button>
+    </div>
+
+    <div id="role-screen" class="screen">
+        <div class="doc-header">Assignment Briefing</div>
+        <h1 id="role-title" style="font-size:3rem; letter-spacing:8px; margin: 15px 0;">---</h1>
+        <p id="role-desc" style="font-size:0.8rem; text-align:center; padding:0 20px; min-height: 60px;"></p>
+        <button class="btn" onclick="finishRoleTurn()">Acknowledge</button>
+    </div>
+
+    <div id="game-screen" class="screen">
+        <div style="width:100%; display:flex; justify-content:space-between; border-bottom:1px solid #333; margin-bottom:10px;">
+            <p id="round-label">PHASE 01</p>
+            <p onclick="openTablet()" style="cursor:pointer; color:var(--gold)">[DATA_LOG]</p>
+        </div>
+        <div class="id-frame" style="width:110px; height:110px;"><img id="gp-img"></div>
+        <h2 id="gp-name" style="margin:5px 0;">---</h2>
+        
+        <div id="action-ui" style="width:100%;">
+            <button id="kill-btn" class="btn" onclick="showTargets()"></button>
+        </div>
+
+        <button class="btn" onclick="doTask()">Fulfill Contract (<span id="task-val">0</span>/2)</button>
+        <button class="btn" style="opacity:0.4; border:none;" onclick="endTurn()">Skip Turn</button>
+    </div>
+
+    <div id="win-screen" class="screen">
+        <div class="doc-header">Protocol Final Result</div>
+        <h1 id="win-msg" style="text-align:center; font-size:1.5rem; margin-bottom: 20px;">---</h1>
+        <div id="win-pics" style="display:flex; justify-content:center; align-items:flex-start; gap:20px; width:100%;"></div>
+        <button class="btn" style="margin-top: 30px;" onclick="location.reload()">Reset Sequence</button>
+    </div>
+
+    <div id="vote-screen" class="screen">
+        <div class="doc-header">Ballot Phase</div>
+        <p style="font-size:0.7rem">VOTER: <span id="voter-name" style="color:var(--red)">---</span></p>
+        <div id="vote-list" class="lobby-list"></div>
+        <button class="btn" style="opacity:0.5" onclick="recordVote(-1)">Abstain</button>
+    </div>
+
+    <div id="vote-summary-screen" class="screen">
+        <div class="doc-header">Election Telemetry</div>
+        <div id="summary-list" class="lobby-list"></div>
+        <button class="btn" onclick="finishVotePhase()">Initialize Next Phase</button>
+    </div>
+
+    <div id="tablet-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.96); z-index:10000; padding:20px; box-sizing:border-box;">
+        <div class="doc-header">Telemetry Status</div>
+        <div id="tablet-grid" class="lobby-list" style="grid-template-columns: 1fr 1fr;"></div>
+        <button class="btn" onclick="document.getElementById('tablet-modal').style.display='none'">Resume</button>
+    </div>
+
+    <div id="target-selector" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.98); z-index:5000; padding:20px; box-sizing:border-box;">
+        <div class="doc-header">Select Target</div>
+        <div id="target-btns" class="lobby-list"></div>
+        <button class="btn" onclick="document.getElementById('target-selector').style.display='none'">Abort</button>
+    </div>
+
+    <script>
+        let players = [];
+        let currentIdx = 0;
+        let round = 1;
+        let votingIdx = 0;
+        let votes = {};
+        let sequence = [];
+        let cooldowns = {}; // Store last kill timestamps
+        let cdTimerId = null;
+        
+        const sfx = {
+            click: new Audio('https://cdn.discordapp.com/attachments/1489990746575736923/1493237754698661888/epic_stock_media-ui-button-heavy-button-press-metallic-333826.mp3?ex=69de3d87&is=69dcec07&hm=2a2eb9a42f40af48b10d4e8e521981f04a6172fa788f4fdb928acdcf2f062c1f&'),
+            gun: new Audio('https://www.soundjay.com/mechanical/sounds/gun-cock-1.mp3'),
+            win: new Audio('https://cdn.discordapp.com/attachments/1489990746575736923/1493153771990286436/win.mp3?ex=69ddef50&is=69dc9dd0&hm=7ae48bcf531f795e0f0e63d695c857c2e3a053f9b5dc208d09c6fabda2f9f05b&')
+        };
+
+        function initAudio() {
+            Object.values(sfx).forEach(a => { a.play(); a.pause(); a.currentTime = 0; });
+            playSfx('click');
+        }
+
+        function playSfx(key) {
+            sfx[key].currentTime = 0;
+            sfx[key].play().catch(e => {});
+        }
+
+        function transition(id) {
+            document.querySelectorAll('.screen').forEach(s => {
+                s.classList.remove('active');
+                s.style.opacity = "0";
+            });
+            const active = document.getElementById(id);
+            active.classList.add('active');
+            setTimeout(() => { active.style.opacity = "1"; }, 50);
+        }
+
+        async function startNewGame() {
+            transition('reg-screen');
+            const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }});
+            document.getElementById('reg-video').srcObject = s;
+            document.getElementById('camera-bg').srcObject = s;
+        }
+
+        function registerPlayer() {
+            playSfx('click');
+            const nameInput = document.getElementById('p-name');
+            const name = nameInput.value;
+            if(!name) return;
+            const canvas = document.createElement('canvas'); canvas.width = 300; canvas.height = 300;
+            canvas.getContext('2d').drawImage(document.getElementById('reg-video'), 0, 0, 300, 300);
+            const pName = name.toUpperCase();
+            players.push({ name: pName, img: canvas.toDataURL(), role: '', alive: true, tasks: 0 });
+            cooldowns[pName] = 0; 
+            document.getElementById('lobby-list').innerHTML += `<div class="vote-card"><img src="${players[players.length-1].img}"><p style="font-size:0.5rem;">${pName}</p></div>`;
+            nameInput.value = "";
+            if(players.length >= 3) document.getElementById('start-btn').style.display = 'block';
+        }
+
+        function finalizeLobby() {
+            playSfx('click');
+            let roles = ['Murderer', 'Sheriff']; while(roles.length < players.length) roles.push('Innocent');
+            roles = roles.sort(() => Math.random() - 0.5);
+            players.forEach((p, i) => p.role = roles[i]);
+            startRolePass();
+        }
+
+        function startRolePass() {
+            transition('pass-screen');
+            const p = players[currentIdx];
+            document.getElementById('pass-name').innerText = p.name;
+            document.getElementById('pass-img').src = p.img;
+            document.getElementById('reveal-btn').onclick = () => {
+                playSfx('click');
+                transition('role-screen');
+                const t = document.getElementById('role-title');
+                t.innerText = p.role.toUpperCase();
+                t.style.color = p.role === 'Murderer' ? 'var(--red)' : (p.role === 'Sheriff' ? 'var(--gold)' : 'white');
+                document.getElementById('role-desc').innerText = p.role === 'Murderer' ? "ELIMINATE EVERYONE. REMAIN UNDETECTED." : (p.role === 'Sheriff' ? "HUNT THE MURDERER. ACCURACY IS DEADLY." : "COMPLETE TASKS. VOTE OUT THE THREAT.");
+            };
+        }
+
+        function finishRoleTurn() {
+            playSfx('click');
+            currentIdx++;
+            if(currentIdx < players.length) startRolePass();
+            else { currentIdx = 0; startRound(); }
+        }
+
+        function startRound() {
+            sequence = players.map((_, i) => i);
+            currentIdx = 0; playTurn();
+        }
+
+        function playTurn() {
+            if(cdTimerId) clearInterval(cdTimerId);
+            const p = players[sequence[currentIdx]];
+            transition('pass-screen');
+            document.getElementById('pass-name').innerText = p.name;
+            document.getElementById('pass-img').src = p.img;
+            
+            document.getElementById('reveal-btn').onclick = () => {
+                playSfx('click');
+                if(!p.alive) {
+                    document.getElementById('dead-img').src = p.img;
+                    transition('dead-screen');
+                    return;
+                }
+                transition('game-screen');
+                updateActionUI();
+            };
+        }
+
+        function updateActionUI() {
+            const p = players[sequence[currentIdx]];
+            const kBtn = document.getElementById('kill-btn');
+            document.getElementById('round-label').innerText = "PHASE 0" + round;
+            document.getElementById('gp-name').innerText = p.name;
+            document.getElementById('gp-img').src = p.img;
+            document.getElementById('task-val').innerText = p.tasks;
+
+            if(p.role === 'Murderer' || p.role === 'Sheriff') {
+                kBtn.style.display = 'block';
+                kBtn.className = p.role === 'Murderer' ? "btn btn-murderer" : "btn btn-sheriff";
+                
+                const processCD = () => {
+                    const now = Date.now();
+                    const lastUsed = cooldowns[p.name] || 0;
+                    const cdTime = p.role === 'Murderer' ? 10000 : 15000;
+                    const remaining = Math.ceil((lastUsed + cdTime - now) / 1000);
+
+                    if (remaining > 0) {
+                        kBtn.disabled = true;
+                        kBtn.innerText = `RELOADING... ${remaining}S`;
+                    } else {
+                        kBtn.disabled = false;
+                        kBtn.innerText = p.role === 'Murderer' ? "ELIMINATE TARGET" : "NEUTRALIZE THREAT";
+                        if(cdTimerId) clearInterval(cdTimerId);
+                    }
+                };
+                
+                processCD();
+                cdTimerId = setInterval(processCD, 1000);
+            } else {
+                kBtn.style.display = 'none';
+            }
+        }
+
+        function doTask() {
+            playSfx('click');
+            const p = players[sequence[currentIdx]];
+            p.tasks++; document.getElementById('task-val').innerText = p.tasks;
+            if(p.tasks >= 2) endTurn();
+        }
+
+        function showTargets() {
+            playSfx('click');
+            document.getElementById('target-selector').style.display = 'block';
+            const btns = document.getElementById('target-btns'); btns.innerHTML = "";
+            players.forEach((p, i) => {
+                if(p.alive && i !== sequence[currentIdx]) 
+                    btns.innerHTML += `<div class="vote-card" onclick="kill(${i})"><img src="${p.img}"><p style="font-size:0.6rem">${p.name}</p></div>`;
+            });
+        }
+
+        function kill(idx) {
+            const shooter = players[sequence[currentIdx]];
+            cooldowns[shooter.name] = Date.now();
+            playSfx('gun');
+
+            if(shooter.role === 'Murderer') { 
+                players[idx].alive = false; 
+                if(players[idx].role === 'Sheriff') transferGun();
+            } 
+            else if(shooter.role === 'Sheriff') {
+                if(players[idx].role === 'Murderer') { players[idx].alive = false; }
+                else { shooter.alive = false; transferGun(); }
+            }
+            document.getElementById('target-selector').style.display = 'none';
+            if(!checkWin()) endTurn();
+        }
+
+        function transferGun() {
+            const candidates = players.filter(p => p.alive && p.role === 'Innocent');
+            if(candidates.length > 0) {
+                const lucky = candidates[Math.floor(Math.random() * candidates.length)];
+                lucky.role = 'Sheriff';
+                const toast = document.getElementById('notify-toast');
+                toast.style.display = 'block';
+                setTimeout(() => toast.style.display = 'none', 3000);
+            }
+        }
+
+        function endTurn() {
+            playSfx('click');
+            if(cdTimerId) clearInterval(cdTimerId);
+            if(players[sequence[currentIdx]]) players[sequence[currentIdx]].tasks = 0;
+            currentIdx++;
+            if(currentIdx < sequence.length) playTurn(); else checkVoting();
+        }
+
+        function checkVoting() {
+            if(checkWin()) return;
+            votingIdx = 0; votes = {};
+            const alive = players.map((_, i) => i).filter(i => players[i].alive);
+            alive.forEach(i => votes[i] = []);
+            votes[-1] = []; 
+            startVotingTurn();
+        }
+        function startVotingTurn() {
+            const alive = players.map((_, i) => i).filter(i => players[i].alive);
+            const voter = players[alive[votingIdx]];
+            transition('pass-screen');
+            document.getElementById('pass-name').innerText = voter.name;
+            document.getElementById('pass-img').src = voter.img;
+            document.getElementById('reveal-btn').onclick = () => {
+                playSfx('click');
+                transition('vote-screen');
+                document.getElementById('voter-name').innerText = voter.name;
+                const list = document.getElementById('vote-list'); list.innerHTML = "";
+                players.forEach((p, i) => { if(p.alive) list.innerHTML += `<div class="vote-card" onclick="recordVote(${i})"><img src="${p.img}"><p style="font-size:0.5rem">${p.name}</p></div>`; });
+            };
+        }
+
+        function recordVote(tIdx) {
+            playSfx('click');
+            const alive = players.map((_, i) => i).filter(i => players[i].alive);
+            votes[tIdx].push(players[alive[votingIdx]].img);
+            votingIdx++;
+            if(votingIdx < alive.length) startVotingTurn(); else showSummary();
+        }
+
+        function showSummary() {
+            transition('vote-summary-screen');
+            const list = document.getElementById('summary-list'); list.innerHTML = "";
+            let max = 0, victim = -1, tie = false;
+            players.forEach((p, i) => {
+                if(p.alive) {
+                    const count = votes[i].length;
+                    let chips = ''; votes[i].forEach(img => chips += `<img src="${img}" style="width:18px;height:18px;border-radius:50%;border:1px solid white;margin:1px;">`);
+                    list.innerHTML += `<div class="vote-card"><img src="${p.img}"><p style="font-size:0.5rem">${p.name}</p><div>${chips}</div></div>`;
+                    if(count > max) { max = count; victim = i; tie = false; }
+                    else if(count === max && max > 0) tie = true;
+                }
+            });
+            if(!tie && victim !== -1) { 
+                if(players[victim].role === 'Sheriff') transferGun();
+                players[victim].alive = false; 
+            }
+        }
+
+        function finishVotePhase() {
+            playSfx('click');
+            if(!checkWin()) { 
+                document.getElementById('fade-black').style.opacity = '1';
+                setTimeout(() => { round++; startRound(); document.getElementById('fade-black').style.opacity = '0'; }, 600);
+            }
+        }
+
+        function checkWin() {
+            const alive = players.filter(p => p.alive);
+            const murderer = players.find(p => p.role === 'Murderer');
+            
+            if(!murderer.alive) { 
+                showWin("INNOCENT VICTORY", 'blue'); 
+                return true; 
+            }
+            
+            // Murderer wins if only 2 people left (Murderer vs 1)
+            if(alive.length <= 2) { 
+                showWin("MURDERER VICTORY", 'red'); 
+                return true; 
+            }
+            return false;
+        }
+
+        function showWin(msg, color) {
+            if(cdTimerId) clearInterval(cdTimerId);
+            transition('win-screen');
+            playSfx('win');
+            document.getElementById('win-msg').innerText = msg;
+            document.getElementById('win-msg').style.color = color === 'red' ? 'var(--red)' : 'var(--blue)';
+            
+            const murderer = players.find(p => p.role === 'Murderer');
+            const currentSheriff = players.find(p => p.role === 'Sheriff');
+
+            const container = document.getElementById('win-pics'); container.innerHTML = "";
+            [currentSheriff, murderer].forEach(p => {
+                if(!p) return;
+                const border = p.role === 'Murderer' ? 'win-frame-red' : 'win-frame-gold';
+                container.innerHTML += `
+                    <div style="flex:1; text-align:center;">
+                        <div class="id-frame ${border}" style="width:110px; height:110px; margin:0 auto 10px auto;"><img src="${p.img}"></div>
+                        <p style="font-weight:bold; font-size:0.9rem; color:${p.role==='Murderer'?'var(--red)':'var(--gold)'}">${p.role}</p>
+                        <p style="font-size:0.6rem;">${p.name}</p>
+                    </div>
+                `;
+            });
+        }
+
+        function openTablet() {
+            playSfx('click');
+            const grid = document.getElementById('tablet-grid'); grid.innerHTML = "";
+            players.forEach(p => {
+                grid.innerHTML += `<div class="vote-card ${p.alive?'':'status-dead'}"><img src="${p.img}"><p style="font-size:0.5rem">${p.name}</p></div>`;
+            });
+            document.getElementById('tablet-modal').style.display = 'block';
+        }
+    </script>
+</body>
+</html>
